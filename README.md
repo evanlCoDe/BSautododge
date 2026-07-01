@@ -1,2 +1,2 @@
-# BSautododge
-Brawl stars auto movement dodge hack
+# Screen Tracker V2 scaffold
+A more complete architecture scaffold for multi-ROI tracking.
