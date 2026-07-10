@@ -5,6 +5,7 @@ from PySide6.QtGui import QImage, QPixmap
 import cv2
 
 from capture.screen_capture import ScreenCapture
+from tracking.player_tracker import PlayerTracker
 from tracking.roi_manager import ROIManager
 
 class MainWindow(QMainWindow):
@@ -14,6 +15,7 @@ class MainWindow(QMainWindow):
 
         self.cap = ScreenCapture()
         self.manager = ROIManager()
+        self.player_tracker = PlayerTracker()
 
         self.label = QLabel()
         self.label.setAlignment(Qt.AlignCenter)
@@ -64,8 +66,13 @@ class MainWindow(QMainWindow):
         
         rois = self.manager.update(frame)
         
-        for x, y, w, h in rois:
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        # Update player tracker
+        player_position = self.player_tracker.update(frame)
+        self.player_tracker.draw(frame)
+
+        # ROI boxes disabled because PlayerTracker has its own display box
+        # for x, y, w, h in rois:
+        #     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         h, w, ch = rgb.shape
@@ -89,19 +96,19 @@ class MainWindow(QMainWindow):
         #     self.diff_window.setPixmap(QPixmap.fromImage(qimg_diff))
 
         # show another window with the binary image from RoiDetector
-        if self.manager.detector.binary_img is not None:
-            binary_rgb = cv2.cvtColor(self.manager.detector.binary_img, cv2.COLOR_GRAY2RGB)
-            h, w, ch = binary_rgb.shape
-            bytes_per_line = ch * w
-            qimg_binary = QImage(binary_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
-            if not hasattr(self, 'binary_window'):
-                self.binary_window = QLabel()
-                self.binary_window.setWindowTitle("Binary Image")
-                self.binary_window.setAlignment(Qt.AlignCenter)
-                self.binary_window.setScaledContents(True)
-                self.binary_window.resize(w, h)
-                self.binary_window.show()
-            self.binary_window.setPixmap(QPixmap.fromImage(qimg_binary))
+        # if self.manager.detector.binary_img is not None:
+        #     binary_rgb = cv2.cvtColor(self.manager.detector.binary_img, cv2.COLOR_GRAY2RGB)
+        #     h, w, ch = binary_rgb.shape
+        #     bytes_per_line = ch * w
+        #     qimg_binary = QImage(binary_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+        #     if not hasattr(self, 'binary_window'):
+        #         self.binary_window = QLabel()
+        #         self.binary_window.setWindowTitle("Binary Image")
+        #         self.binary_window.setAlignment(Qt.AlignCenter)
+        #         self.binary_window.setScaledContents(True)
+        #         self.binary_window.resize(w, h)
+        #         self.binary_window.show()
+        #     self.binary_window.setPixmap(QPixmap.fromImage(qimg_binary))
 
         self.statusBar().showMessage(f"Capture region: {self.cap.width}x{self.cap.height}  ROIs={len(rois)}  FPS~30")
        
