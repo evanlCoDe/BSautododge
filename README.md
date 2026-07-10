@@ -3,6 +3,10 @@
 
 This project is an educational computer vision prototype developed to explore real-time object detection, motion tracking, and prediction algorithms. The primary goal of this project is to gain practical experience in software development, artificial intelligence (AI), and computer vision concepts through hands-on experimentation in a controlled testing environment.
 
+## System Architecture
+<img width="1311" height="550" alt="System architecture" src="https://github.com/user-attachments/assets/e0d2bc6f-a293-45ef-8f05-e67f8d62b980" />
+
+
 ## Platform
 
 - **Programming Language:** Python
