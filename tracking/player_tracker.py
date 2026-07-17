@@ -185,7 +185,8 @@ class PlayerTracker:
 
 
             x,y,w,h = cv2.boundingRect(c)
-
+            green_ratio = cv2.countNonZero(mask[y:y+h, x:x+w]) / (w*h)
+            print(f"green_ratio: {green_ratio:.2f}, area: {area}, w: {w}, h: {h}")
 
             ratio = w / max(h,1)
 
@@ -195,6 +196,7 @@ class PlayerTracker:
                 0.4 < ratio < 2.5
                 and w > 10
                 and h > 10
+                and green_ratio < 0.5
             ):
 
                 if area > best_area:
