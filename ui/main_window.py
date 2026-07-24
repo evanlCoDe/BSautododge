@@ -22,6 +22,28 @@ class MainWindow(QMainWindow):
         self.key_sequence_started_at = time.monotonic()
         self.key_sequence_state = 0
 
+        self.key_sequence_steps = (
+            # t, keys_to_release, keys_to_press
+            (10.0, [], ["w", "a", "s", "d"]),
+            (13.0, ["w", "a", "s"], []),
+            (14.1, ["d"], []),
+            (14.1, [], ["a"]),
+            (14.6, ["a"], []),
+            (14.6, [], ["d"]),
+            (15.1, ["d"], []),
+            (15.1, [], ["a"]),
+            (15.6, ["a"], []),
+            (15.6, [], ["d"]),
+            (16.1, ["d"], []),
+            (16.1, [], ["a"]),
+            (16.6, ["a"], []),
+            (16.6, [], ["d"]),
+            (17.1, ["d"], []),
+            (17.1, [], ["a"]),
+            (17.6, ["a", "w", "s", "d"], []),
+        )
+
+
         self.label = QLabel()
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setScaledContents(True)
@@ -122,15 +144,15 @@ class MainWindow(QMainWindow):
         """Hold WASD after 10 seconds, then leave only D held after 3 more."""
         elapsed = time.monotonic() - self.key_sequence_started_at
 
-        if self.key_sequence_state == 0 and elapsed >= 10:
-            for key in ("w", "a", "s", "d"):
-                self.keyboard.key_down(key)
-            self.key_sequence_state = 1
 
-        elif self.key_sequence_state == 1 and elapsed >= 13:
-            for key in ("w", "a", "s"):
+        if elapsed >= self.key_sequence_steps[ self.key_sequence_state][0] :
+            for key in self.key_sequence_steps[self.key_sequence_state][1]:
                 self.keyboard.key_up(key)
-            self.key_sequence_state = 2
+            for key in self.key_sequence_steps[self.key_sequence_state][2]:
+                self.keyboard.key_down(key)
+            self.key_sequence_state += 1
+
+            
 
     def closeEvent(self, event):
         self.keyboard.release_all()
