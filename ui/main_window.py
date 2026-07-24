@@ -3,8 +3,10 @@ from PySide6.QtWidgets import QMainWindow, QLabel, QWidget, QVBoxLayout, QHBoxLa
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtGui import QImage, QPixmap
 import cv2
+import time
 
 from capture.screen_capture import ScreenCapture
+from control.keyboard_events import KeyboardEvents
 from tracking.player_tracker import PlayerTracker
 from tracking.roi_manager import ROIManager
 
@@ -16,6 +18,9 @@ class MainWindow(QMainWindow):
         self.cap = ScreenCapture()
         self.manager = ROIManager()
         self.player_tracker = PlayerTracker()
+        self.keyboard = KeyboardEvents()
+        self.key_sequence_started_at = time.monotonic()
+        self.key_sequence_state = 0
 
         self.label = QLabel()
         self.label.setAlignment(Qt.AlignCenter)
@@ -62,6 +67,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Capture region: {width}x{height}")
 
     def tick(self):
+        self._run_key_sequence()
         frame = self.cap.grab()
         
         rois = self.manager.update(frame)
@@ -111,4 +117,22 @@ class MainWindow(QMainWindow):
         #     self.binary_window.setPixmap(QPixmap.fromImage(qimg_binary))
 
         self.statusBar().showMessage(f"Capture region: {self.cap.width}x{self.cap.height}  ROIs={len(rois)}  FPS~30")
+
+    def _run_key_sequence(self):
+        """Hold WASD after 10 seconds, then leave only D held after 3 more."""
+        elapsed = time.monotonic() - self.key_sequence_started_at
+
+        if self.key_sequence_state == 0 and elapsed >= 10:
+            for key in ("w", "a", "s", "d"):
+                self.keyboard.key_down(key)
+            self.key_sequence_state = 1
+
+        elif self.key_sequence_state == 1 and elapsed >= 13:
+            for key in ("w", "a", "s"):
+                self.keyboard.key_up(key)
+            self.key_sequence_state = 2
+
+    def closeEvent(self, event):
+        self.keyboard.release_all()
+        super().closeEvent(event)
        
