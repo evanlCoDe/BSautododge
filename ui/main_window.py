@@ -21,28 +21,15 @@ class MainWindow(QMainWindow):
         self.keyboard = KeyboardEvents()
         self.key_sequence_started_at = time.monotonic()
         self.key_sequence_state = 0
-
+        
         self.key_sequence_steps = (
             # t, keys_to_release, keys_to_press
-            (10.0, [], ["w", "a", "s", "d"]),
-            (13.0, ["w", "a", "s"], []),
-            (14.1, ["d"], []),
-            (14.1, [], ["a"]),
-            (14.6, ["a"], []),
-            (14.6, [], ["d"]),
-            (15.1, ["d"], []),
-            (15.1, [], ["a"]),
-            (15.6, ["a"], []),
-            (15.6, [], ["d"]),
-            (16.1, ["d"], []),
-            (16.1, [], ["a"]),
-            (16.6, ["a"], []),
-            (16.6, [], ["d"]),
-            (17.1, ["d"], []),
-            (17.1, [], ["a"]),
-            (17.6, ["a", "w", "s", "d"], []),
+            (0.0, [], ["w", "a", "s", "d"]),
+            (0.3, ["w", "s", "d"], ["a"]),
+            (0.5, [], ["w", "a", "s", "d"])
+            
         )
-
+        self.key_sequence_steps = ()
 
         self.label = QLabel()
         self.label.setAlignment(Qt.AlignCenter)
@@ -98,9 +85,65 @@ class MainWindow(QMainWindow):
         player_position = self.player_tracker.update(frame)
         self.player_tracker.draw(frame)
 
+
         # ROI boxes disabled because PlayerTracker has its own display box
         # for x, y, w, h in rois:
         #     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+ # A tracker predicts 150 frames ahead.  Convert that displacement to a
+        # 500 ms horizon (about 15 frames at this window's 33 ms update rate).
+        if player_position is not None:
+            prediction_frames = 150
+            horizon_frames = 500 / self.timer.interval()
+
+            for threat in self.manager.trackers:
+                if threat.center is None or threat.predicted_point is None:
+                    continue
+
+                # `predicted_point - center` is the threat's projected motion.
+                speed_x = (threat.predicted_point[0] - threat.center[0]) / prediction_frames
+                speed_y = (threat.predicted_point[1] - threat.center[1]) / prediction_frames
+                future_position = (
+                    threat.center[0] + speed_x * horizon_frames,
+                    threat.center[1] + speed_y * horizon_frames,
+                )
+
+                # Account for both the player marker and the tracked threat's
+                # bounding box when deciding whether their paths collide.
+                _, _, threat_w, threat_h = threat.roi
+                hit_radius = 30 + max(threat_w, threat_h) / 2
+                # Check the entire predicted path, not only the point where
+                # the threat will be after 500 ms.  This catches bullets that
+                # pass through the player before reaching that endpoint.
+                path_x = future_position[0] - threat.center[0]
+                path_y = future_position[1] - threat.center[1]
+                path_length_squared = path_x ** 2 + path_y ** 2
+
+                if path_length_squared:
+                    progress = (
+                        (player_position[0] - threat.center[0]) * path_x
+                        + (player_position[1] - threat.center[1]) * path_y
+                    ) / path_length_squared
+                    progress = max(0.0, min(1.0, progress))
+                    closest_point = (
+                        threat.center[0] + path_x * progress,
+                        threat.center[1] + path_y * progress,
+                    )
+                else:
+                    closest_point = threat.center
+
+                closest_distance = (
+                    (closest_point[0] - player_position[0]) ** 2
+                    + (closest_point[1] - player_position[1]) ** 2
+                ) ** 0.5
+
+                if closest_distance <= hit_radius:
+                    cv2.circle(frame, threat.center, 100,
+                               (0, 0, 255), 2)
+                    self._run_key_sequence()
+                    print(f"Threat at {threat.center} predicted to hit player at {player_position} in 500 ms. Closest path distance: {closest_distance:.2f}, Hit radius: {hit_radius:.2f}")
+                else:
+                    self.key_sequence_started_at = time.monotonic()
+                    self.key_sequence_state =0
 
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         h, w, ch = rgb.shape
@@ -143,14 +186,15 @@ class MainWindow(QMainWindow):
     def _run_key_sequence(self):
         """Hold WASD after 10 seconds, then leave only D held after 3 more."""
         elapsed = time.monotonic() - self.key_sequence_started_at
+        print(f"Elapsed time: {elapsed:.2f} seconds, Key sequence state: {self.key_sequence_state}")
 
-
-        if elapsed >= self.key_sequence_steps[ self.key_sequence_state][0] :
+        if self.key_sequence_state < len(self.key_sequence_steps) and elapsed >= self.key_sequence_steps[self.key_sequence_state][0]:
             for key in self.key_sequence_steps[self.key_sequence_state][1]:
                 self.keyboard.key_up(key)
             for key in self.key_sequence_steps[self.key_sequence_state][2]:
                 self.keyboard.key_down(key)
             self.key_sequence_state += 1
+            print(f"Key sequence step {self.key_sequence_state} executed at {elapsed:.2f} seconds.")
 
             
 
