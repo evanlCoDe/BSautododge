@@ -29,7 +29,8 @@ class MainWindow(QMainWindow):
             (0.5, [], ["w", "a", "s", "d"])
             
         )
-        self.key_sequence_steps = ()
+        
+
 
         self.label = QLabel()
         self.label.setAlignment(Qt.AlignCenter)
@@ -141,7 +142,7 @@ class MainWindow(QMainWindow):
                                (0, 0, 255), 2)
                     self._run_key_sequence()
                     print(f"Threat at {threat.center} predicted to hit player at {player_position} in 500 ms. Closest path distance: {closest_distance:.2f}, Hit radius: {hit_radius:.2f}")
-                else:
+                elif self.key_sequence_state < 1 or self.key_sequence_state >= len(self.key_sequence_steps):
                     self.key_sequence_started_at = time.monotonic()
                     self.key_sequence_state =0
 
@@ -186,15 +187,16 @@ class MainWindow(QMainWindow):
     def _run_key_sequence(self):
         """Hold WASD after 10 seconds, then leave only D held after 3 more."""
         elapsed = time.monotonic() - self.key_sequence_started_at
-        print(f"Elapsed time: {elapsed:.2f} seconds, Key sequence state: {self.key_sequence_state}")
-
+        # print(f"Elapsed time: {elapsed:.2f} seconds, Key sequence state: {self.key_sequence_state}")
+        # print(f"Key sequence steps: {self.key_sequence_steps}")
+        
         if self.key_sequence_state < len(self.key_sequence_steps) and elapsed >= self.key_sequence_steps[self.key_sequence_state][0]:
             for key in self.key_sequence_steps[self.key_sequence_state][1]:
                 self.keyboard.key_up(key)
             for key in self.key_sequence_steps[self.key_sequence_state][2]:
                 self.keyboard.key_down(key)
             self.key_sequence_state += 1
-            print(f"Key sequence step {self.key_sequence_state} executed at {elapsed:.2f} seconds.")
+            # print(f"Key sequence step {self.key_sequence_state} executed at {elapsed:.2f} seconds.")
 
             
 
