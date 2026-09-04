@@ -9,10 +9,11 @@ class ROIManager:
         self.counter = 0
 
     def update(self, frame):
-    
+        detected_rois = self.detector.detect(frame)
+
         if not self.trackers:
             self.trackers = []
-            for roi in self.detector.detect(frame):
+            for roi in detected_rois:
                 self.trackers.append(OpticalFlowTracker(frame, roi))
 
         alive = []
