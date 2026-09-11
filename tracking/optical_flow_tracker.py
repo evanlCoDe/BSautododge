@@ -45,20 +45,17 @@ class OpticalFlowTracker:
 
         dx = center[0] - prev_center[0]
         dy = center[1] - prev_center[1]
-        speed = abs(dx) + abs(dy)
-        print(f"{self.roi} ==> candidate:{center} speed:{speed:.2f}")
 
         # Ignore tiny jitter and reject implausible jumps caused by background
         # motion or wall-like texture changes.
-        if 1< speed < 4:
-            return False
+        # if 1< speed < 4:
+        #     return False
         # if speed > 150:
         #     return False
         return True
 
     def _estimate_motion_from_flow(self, frame, hue):
         x, y, w, h = self.roi
-        print(self.roi)
         pad = max(20, int(max(w, h) * 2))
 
         x0 = max(0, x - pad)
@@ -83,7 +80,6 @@ class OpticalFlowTracker:
         )
 
         if prev_pts is None or len(prev_pts) < 4:
-            print(f"{self.roi} ==> pre_pts is None or len(prev_pts):{len(prev_pts) if prev_pts is not None else 0}")
             return None
 
         next_pts, status, _ = cv2.calcOpticalFlowPyrLK(
@@ -91,13 +87,13 @@ class OpticalFlowTracker:
             cur_patch,
             prev_pts,
             None,
-            winSize=(21, 21),
-            maxLevel=3,
+            # A larger search window and one extra pyramid level are needed for
+            # 500 px/sec motion (about 17 px between 30 FPS frames).
+            winSize=(31, 31),
+            maxLevel=4,
             criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01),
         )
-
         if next_pts is None:
-            print(f"{self.roi} ==> next_pts is None")
             return None
 
         good_vectors = []
@@ -107,30 +103,26 @@ class OpticalFlowTracker:
                 next_x, next_y = next_pt.ravel()
                 dx = next_x - prev_x
                 dy = next_y - prev_y
-                if abs(dx) + abs(dy) < 60:
+                if abs(dx) + abs(dy) < 120:
                     good_vectors.append((dx, dy))
-
         if len(good_vectors) < 4:
-            print(f"{self.roi} ==> len(good_vectors):{len(good_vectors)} < 4  return")
             return None
 
         avg_dx = float(np.mean([v[0] for v in good_vectors]))
         avg_dy = float(np.mean([v[1] for v in good_vectors]))
 
         candidate = (
-            int(self.prev_center[0] + avg_dx),
-            int(self.prev_center[1] + avg_dy),
+            self.prev_center[0] + avg_dx,
+            self.prev_center[1] + avg_dy,
         )
-
         if not self._filter_candidate(candidate, self.prev_center):
-            print(f"{self.roi} ==> candidate:{candidate} rejected by _filter_candidate")
             return None
 
         return candidate
 
     def _estimate_motion_from_diff(self, frame, hue):
         x, y, w, h = self.roi
-        pad = max(20, int(max(w, h) * 1.5))
+        pad = max(20, int(max(w, h) * 4))
 
         x0 = max(0, x - pad)
         y0 = max(0, y - pad)
@@ -160,8 +152,8 @@ class OpticalFlowTracker:
         bx, by, bw, bh = cv2.boundingRect(contour)
         center = (int(x0 + bx + bw / 2), int(y0 + by + bh / 2))
 
-        if not self._filter_candidate(center, self.prev_center):
-            return None
+        # if not self._filter_candidate(center, self.prev_center):
+        #     return None
 
         return center
 
@@ -173,27 +165,35 @@ class OpticalFlowTracker:
         if self.prev_center is None:
             self.prev_center = self.center
 
-        candidate = self._estimate_motion_from_flow(frame, hue)
+        # candidate = self._estimate_motion_from_flow(frame, hue)
+        candidate = self._estimate_motion_from_diff(frame, hue)
         if candidate is None:
-            return 
-            # candidate = self._estimate_motion_from_diff(frame, hue)
+            # Keep the reference frame current even when this frame has too few
+            # reliable features; otherwise the next estimate spans multiple
+            # frames and becomes stale or is discarded as an implausible jump.
+            self.prev_hue = hue
+            self.frame_count += 1
+            return True
 
         if candidate is not None:
             dx = candidate[0] - self.prev_center[0]
             dy = candidate[1] - self.prev_center[1]
 
-            # Smooth very noisy velocity estimates.
+            # print(f"dx: {dx:.2f}, dy: {dy:.2f}, candidate: {candidate}, prev_center: {self.prev_center}")
+
+            # Keep only a short history. A long window makes fast objects visibly
+            # lag behind their actual position.
             self.velocity_history.append((dx, dy))
-            if len(self.velocity_history) > 6:
+            if len(self.velocity_history) > 3:
                 self.velocity_history.pop(0)
 
             avg_dx = sum(v[0] for v in self.velocity_history) / len(self.velocity_history)
             avg_dy = sum(v[1] for v in self.velocity_history) / len(self.velocity_history)
 
-            new_center = (
-                int(candidate[0] * 0.6 + self.prev_center[0] * 0.4),
-                int(candidate[1] * 0.6 + self.prev_center[1] * 0.4),
-            )
+            # The optical-flow result already averages multiple feature vectors.
+            # Applying another 0.6 blend would limit a 300 px/sec object to about
+            # 180 px/sec at the 30 FPS capture rate.
+            new_center = candidate
             if abs(avg_dx) + abs(avg_dy) > 0:
                 prediction_distance = 150
                 self.predicted_point = (
@@ -212,10 +212,11 @@ class OpticalFlowTracker:
             )
 
             self.prev_center = self.center
-            cv2.circle(frame, self.center, 3, (0, 255, 255), 2)
+            draw_center = (round(self.center[0]), round(self.center[1]))
+            cv2.circle(frame, draw_center, 3, (0, 255, 255), 2)
 
             if self.predicted_point is not None:
-                cv2.line(frame, self.center, self.predicted_point, (0, 0, 255), 2)
+                cv2.line(frame, draw_center, self.predicted_point, (0, 0, 255), 2)
 
         self.prev_hue = hue
         self.frame_count += 1
