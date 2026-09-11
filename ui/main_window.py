@@ -78,13 +78,13 @@ class MainWindow(QMainWindow):
 
     def tick(self):
         # self._run_key_sequence()
-        frame = self.cap.grab()
-        
-        rois = self.manager.update(frame)
+        frame = self.cap.grab()        
         
         # Update player tracker
         player_position = self.player_tracker.update(frame)
         self.player_tracker.draw(frame)
+
+        rois = self.manager.update(frame, player_position)
 
 
         # Display detector ROIs in blue on the captured frame.
@@ -138,10 +138,10 @@ class MainWindow(QMainWindow):
                 ) ** 0.5
 
                 if closest_distance <= hit_radius:
-                    cv2.circle(frame, threat.center, 100,
-                               (0, 0, 255), 2)
-                    self._run_key_sequence()
-                    print(f"Threat at {threat.center} predicted to hit player at {player_position} in 500 ms. Closest path distance: {closest_distance:.2f}, Hit radius: {hit_radius:.2f}")
+                    pass
+                    # cv2.circle(frame, threat.center, 100,(0, 0, 255), 2)
+                    # self._run_key_sequence()
+                    # print(f"Threat at {threat.center} predicted to hit player at {player_position} in 500 ms. Closest path distance: {closest_distance:.2f}, Hit radius: {hit_radius:.2f}")
                 elif self.key_sequence_state < 1 or self.key_sequence_state >= len(self.key_sequence_steps):
                     self.key_sequence_started_at = time.monotonic()
                     self.key_sequence_state =0
@@ -208,7 +208,7 @@ class MainWindow(QMainWindow):
             for key in self.key_sequence_steps[self.key_sequence_state][2]:
                 self.keyboard.key_down(key)
             self.key_sequence_state += 1
-            # print(f"Key sequence step {self.key_sequence_state} executed at {elapsed:.2f} seconds.")
+            print(f"Key sequence step {self.key_sequence_state} executed at {elapsed:.2f} seconds.")
 
             
 
