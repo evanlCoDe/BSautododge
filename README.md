@@ -47,18 +47,6 @@ This project is inspired by real-world computer vision applications, including t
 This project was created solely for educational and research purposes. Its objective is to improve programming, computer vision, and artificial intelligence skills through experimentation and software development. It is not intended for commercial use or to promote unfair gameplay or violations of any software's Terms of Service.
 
 ---
-## Testing Results
-
-
-### Player Tracking Yellow Box
-https://github.com/user-attachments/assets/09c242c9-3fb3-4cc5-9476-4829c8127b59
-
-
-
-
-
----
-
 ## Experimental Testing and Modifications
 
 
@@ -77,6 +65,35 @@ Minimize background noise and significantly improve the precision of tracking an
   - Action: Replaced the optical flow method with a Hue-based Absolute Frame Differencing algorithm.
   - Technical Core: This approach leverages a dynamic Region of Interest (ROI) combined with morphological image processing to accurately estimate the moving center of the object.
   - Result: Successful. This algorithm resolved the tracking failures and successfully locked onto the high-speed target.
+
+## Testing Results
+
+
+### Player Tracking Yellow Box
+https://github.com/user-attachments/assets/09c242c9-3fb3-4cc5-9476-4829c8127b59
+
+
+
+
+### Real time tracking demo
+<img width="1463" height="803" alt="Screenshot 2026-09-24 at 7 56 08 PM" src="https://github.com/user-attachments/assets/cf7f95fe-0fd6-4531-be1b-5083dbd53712" />
+
+
+
+https://github.com/user-attachments/assets/0425f483-828d-4afb-8553-681aa2f88372
+
+The output display is split into two parts to demonstrate the tracking results:
+  - Left Panel (Original Video with Tracking Overlays):
+    - Yellow Bounding Box: Successfully locks onto and tracks the player's real-time position.
+    - Blue Bounding Boxes: Detects and tracks the high-speed incoming projectiles (cannonballs).
+    - Red Trajectory Lines: Predicts the future flight path and trajectory of the detected projectiles based on their motion vectors.
+  - Right Panel (Processed Motion Detection Mask):
+    - Displays the binary motion areas extracted using the Hue-based differencing method.
+    - All subsequent target localization, bounding boxes, and trajectory predictions shown in the left panel are calculated directly from these processed motion blocks.
+
+---
+
+
 
 ---
 
